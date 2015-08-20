@@ -583,24 +583,24 @@ class TransportHTTP extends Base
     /**
      * set proxy info here.
      *
-     * @param string $proxyhost     use an empty string to remove proxy
-     * @param string $proxyport
-     * @param string $proxyusername
-     * @param string $proxypassword
+     * @param string $proxyHost     use an empty string to remove proxy
+     * @param string $proxyPort
+     * @param string $proxyUsername
+     * @param string $proxyPassword
      * @param string $proxyauthtype (basic|ntlm)
      */
-    public function setProxy($proxyhost, $proxyport, $proxyusername = '', $proxypassword = '', $proxyauthtype = 'basic')
+    public function setProxy($proxyHost, $proxyPort, $proxyUsername = '', $proxyPassword = '', $proxyauthtype = 'basic')
     {
-        if ($proxyhost) {
+        if ($proxyHost) {
             $this->proxy = array(
-                'host' => $proxyhost,
-                'port' => $proxyport,
-                'username' => $proxyusername,
-                'password' => $proxypassword,
+                'host' => $proxyHost,
+                'port' => $proxyPort,
+                'username' => $proxyUsername,
+                'password' => $proxyPassword,
                 'authtype' => $proxyauthtype,
             );
-            if ($proxyusername != '' && $proxypassword != '' && $proxyauthtype = 'basic') {
-                $this->setHeader('Proxy-Authorization', ' Basic '.base64_encode($proxyusername.':'.$proxypassword));
+            if ($proxyUsername != '' && $proxyPassword != '' && $proxyauthtype = 'basic') {
+                $this->setHeader('Proxy-Authorization', ' Basic '.base64_encode($proxyUsername.':'.$proxyPassword));
             }
         } else {
             $this->debug('remove proxy');

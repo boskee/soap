@@ -41,10 +41,10 @@ class WSDL extends Base
     public $depth = 0;
     public $depth_array = array();
     // for getting wsdl
-    public $proxyhost = '';
-    public $proxyport = '';
-    public $proxyusername = '';
-    public $proxypassword = '';
+    public $proxyHost = '';
+    public $proxyPort = '';
+    public $proxyUsername = '';
+    public $proxyPassword = '';
     public $timeout = 0;
     public $response_timeout = 30;
     public $curl_options = array();    // User-specified cURL options
@@ -59,23 +59,23 @@ class WSDL extends Base
      * constructor.
      * 
      * @param string $wsdl             WSDL document URL
-     * @param string $proxyhost
-     * @param string $proxyport
-     * @param string $proxyusername
-     * @param string $proxypassword
+     * @param string $proxyHost
+     * @param string $proxyPort
+     * @param string $proxyUsername
+     * @param string $proxyPassword
      * @param int    $timeout          set the connection timeout
      * @param int    $response_timeout set the response timeout
      * @param array  $curl_options     user-specified cURL options
      * @param bool   $use_curl         try to use cURL
      */
-    public function __construct($wsdl = '', $proxyhost = false, $proxyport = false, $proxyusername = false, $proxypassword = false, $timeout = 0, $response_timeout = 30, $curl_options = null, $use_curl = false)
+    public function __construct($wsdl = '', $proxyHost = false, $proxyPort = false, $proxyUsername = false, $proxyPassword = false, $timeout = 0, $response_timeout = 30, $curl_options = null, $use_curl = false)
     {
         parent::__construct();
         $this->debug("ctor wsdl=$wsdl timeout=$timeout response_timeout=$response_timeout");
-        $this->proxyhost = $proxyhost;
-        $this->proxyport = $proxyport;
-        $this->proxyusername = $proxyusername;
-        $this->proxypassword = $proxypassword;
+        $this->proxyHost = $proxyHost;
+        $this->proxyPort = $proxyPort;
+        $this->proxyUsername = $proxyUsername;
+        $this->proxyPassword = $proxyPassword;
         $this->timeout = $timeout;
         $this->response_timeout = $response_timeout;
         if (is_array($curl_options)) {
@@ -217,8 +217,8 @@ class WSDL extends Base
             $tr = new TransportHTTP($wsdl, $this->curl_options, $this->use_curl);
             $tr->request_method = 'GET';
             $tr->useSOAPAction = false;
-            if ($this->proxyhost && $this->proxyport) {
-                $tr->setProxy($this->proxyhost, $this->proxyport, $this->proxyusername, $this->proxypassword);
+            if ($this->proxyHost && $this->proxyPort) {
+                $tr->setProxy($this->proxyHost, $this->proxyPort, $this->proxyUsername, $this->proxyPassword);
             }
             if ($this->authtype != '') {
                 $tr->setCredentials($this->username, $this->password, $this->authtype, array(), $this->certRequest);

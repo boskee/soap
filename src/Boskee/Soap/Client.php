@@ -33,18 +33,19 @@ class Client extends Base
     public $document = '';                // SOAP body response portion (incomplete namespace resolution) (text)
     public $endpoint;
     public $forceEndpoint = '';        // overrides WSDL endpoint
-    public $proxyhost = '';
-    public $proxyport = '';
-    public $proxyusername = '';
-    public $proxypassword = '';
+    public $proxyHost = '';
+    public $proxyPort = '';
+    public $proxyUsername = '';
+    public $proxyPassword = '';
     public $portName = '';                // port name to use in WSDL
     public $xml_encoding = '';            // character set encoding of incoming (response) messages
     public $http_encoding = false;
     public $timeout = 0;                // HTTP connection timeout
     public $response_timeout = 30;        // HTTP response timeout
     public $endpointType = '';            // soap|wsdl, empty for WSDL initialization error
-    public $persistentConnection = false;
-    public $defaultRpcParams = false;    // This is no longer used
+    
+    protected $persistentConnection = false;
+
     public $request = '';                // HTTP request
     public $response = '';                // HTTP response
     public $responseData = '';            // SOAP payload of response
@@ -80,22 +81,22 @@ class Client extends Base
      *
      * @param mixed  $endpoint         SOAP server or WSDL URL (string), or wsdl instance (object)
      * @param mixed  $wsdl             optional, set to 'wsdl' or true if using WSDL
-     * @param string $proxyhost        optional
-     * @param string $proxyport        optional
-     * @param string $proxyusername    optional
-     * @param string $proxypassword    optional
+     * @param string $proxyHost        optional
+     * @param string $proxyPort        optional
+     * @param string $proxyUsername    optional
+     * @param string $proxyPassword    optional
      * @param int    $timeout          set the connection timeout
      * @param int    $response_timeout set the response timeout
      * @param string $portName         optional portName in WSDL document
      */
-    public function __construct($endpoint, $wsdl = false, $proxyhost = false, $proxyport = false, $proxyusername = false, $proxypassword = false, $timeout = 0, $response_timeout = 30, $portName = '')
+    public function __construct($endpoint, $wsdl = false, $proxyHost = false, $proxyPort = false, $proxyUsername = false, $proxyPassword = false, $timeout = 0, $response_timeout = 30, $portName = '')
     {
         parent::__construct();
         $this->endpoint = $endpoint;
-        $this->proxyhost = $proxyhost;
-        $this->proxyport = $proxyport;
-        $this->proxyusername = $proxyusername;
-        $this->proxypassword = $proxypassword;
+        $this->proxyHost = $proxyHost;
+        $this->proxyPort = $proxyPort;
+        $this->proxyUsername = $proxyUsername;
+        $this->proxyPassword = $proxyPassword;
         $this->timeout = $timeout;
         $this->response_timeout = $response_timeout;
         $this->portName = $portName;
@@ -105,7 +106,7 @@ class Client extends Base
 
         // make values
         if ($wsdl) {
-            if (is_object($endpoint) && (get_class($endpoint) == 'Boskee\Soap\WSDL')) {
+            if (is_object($endpoint) && ('Boskee\Soap\WSDL' == get_class($endpoint))) {
                 $this->wsdl = $endpoint;
                 $this->endpoint = $this->wsdl->wsdl;
                 $this->wsdlFile = $this->endpoint;
@@ -126,24 +127,19 @@ class Client extends Base
     public function __call($methodName, $arguments)
     {
         if ('wsdl' == $this->endpointType) {
-	        if (is_null($this->wsdl)) {
-	            $this->loadWSDL();
-	            /*if ($this->getError()) {
-	                return 'echo "'.$this->getError().'";';
-	            }*/
-	        }
+            if (is_null($this->wsdl)) {
+                $this->loadWSDL();
+                /*if ($this->getError()) {
+                    return 'echo "'.$this->getError().'";';
+                }*/
+            }
 
-	        if (array_key_exists($methodName, $this->operations))
-	        {
-	        	$opData = $this->operations[$methodName];
-
-        		$namespace = !isset($opData['namespace']) ? 'http://testuri.com' : $opData['namespace'];
-
-				return $this->call($methodName, $arguments, $namespace, (isset($opData['soapAction']) ? $opData['soapAction'] : ''));
-	        }
+            if (array_key_exists($methodName, $this->operations)) {
+                return $this->call($methodName, $arguments);
+            }
         }
 
-    	trigger_error('Call to undefined method '.__CLASS__.'::'.$methodName.'()', E_USER_ERROR);
+        trigger_error('Call to undefined method '.__CLASS__.'::'.$methodName.'()', E_USER_ERROR);
     }
 
     /**
@@ -204,11 +200,7 @@ class Client extends Base
             if (isset($opData['soapAction'])) {
                 $soapAction = $opData['soapAction'];
             }
-            if (!$this->forceEndpoint) {
-                $this->endpoint = $opData['endpoint'];
-            } else {
-                $this->endpoint = $this->forceEndpoint;
-            }
+            $this->endpoint = $this->forceEndpoint ?: $opData['endpoint'];
             $namespace = isset($opData['input']['namespace']) ? $opData['input']['namespace'] :    $namespace;
             $style = $opData['style'];
             $use = $opData['input']['use'];
@@ -392,24 +384,16 @@ class Client extends Base
         $this->debug('checkWSDL');
         // catch errors
         if ($errstr = $this->wsdl->getError()) {
-            $this->appendDebug($this->wsdl->getDebug());
-            $this->wsdl->clearDebug();
             $this->debug('got wsdl error: '.$errstr);
             $this->setError('wsdl error: '.$errstr);
         } elseif ($this->operations = $this->wsdl->getOperations($this->portName, 'soap')) {
-            $this->appendDebug($this->wsdl->getDebug());
-            $this->wsdl->clearDebug();
             $this->bindingType = 'soap';
             $this->debug('got '.count($this->operations).' operations from wsdl '.$this->wsdlFile.' for binding type '.$this->bindingType);
         } elseif ($this->operations = $this->wsdl->getOperations($this->portName, 'soap12')) {
-            $this->appendDebug($this->wsdl->getDebug());
-            $this->wsdl->clearDebug();
             $this->bindingType = 'soap12';
             $this->debug('got '.count($this->operations).' operations from wsdl '.$this->wsdlFile.' for binding type '.$this->bindingType);
             $this->debug('**************** WARNING: SOAP 1.2 BINDING *****************');
         } else {
-            $this->appendDebug($this->wsdl->getDebug());
-            $this->wsdl->clearDebug();
             $this->debug('getOperations returned false');
             $this->setError('no operations defined in the WSDL document!');
         }
@@ -421,7 +405,7 @@ class Client extends Base
     public function loadWSDL()
     {
         $this->debug('instantiating wsdl class with doc: '.$this->wsdlFile);
-        $this->wsdl = new WSDL('', $this->proxyhost, $this->proxyport, $this->proxyusername, $this->proxypassword, $this->timeout, $this->response_timeout, $this->curl_options, $this->use_curl);
+        $this->wsdl = new WSDL('', $this->proxyHost, $this->proxyPort, $this->proxyUsername, $this->proxyPassword, $this->timeout, $this->response_timeout, $this->curl_options, $this->use_curl);
         $this->wsdl->setCredentials($this->username, $this->password, $this->authtype, $this->certRequest);
         $this->wsdl->charencoding = $this->charencoding;
         $this->wsdl->fetchWSDL($this->wsdlFile);
@@ -481,8 +465,8 @@ class Client extends Base
                 }
                 $http->setContentType($this->getHTTPContentType(), $this->getHTTPContentTypeCharset());
                 $http->setSOAPAction($soapaction);
-                if ($this->proxyhost && $this->proxyport) {
-                    $http->setProxy($this->proxyhost, $this->proxyport, $this->proxyusername, $this->proxypassword);
+                if ($this->proxyHost && $this->proxyPort) {
+                    $http->setProxy($this->proxyHost, $this->proxyPort, $this->proxyUsername, $this->proxyPassword);
                 }
                 if ($this->authtype != '') {
                     $http->setCredentials($this->username, $this->password, $this->authtype, array(), $this->certRequest);
@@ -658,17 +642,17 @@ class Client extends Base
     /**
      * set proxy info here.
      *
-     * @param string $proxyhost
-     * @param string $proxyport
-     * @param string $proxyusername
-     * @param string $proxypassword
+     * @param string $proxyHost
+     * @param string $proxyPort
+     * @param string $proxyUsername
+     * @param string $proxyPassword
      */
-    public function setHTTPProxy($proxyhost, $proxyport, $proxyusername = '', $proxypassword = '')
+    public function setHTTPProxy($proxyHost, $proxyPort, $proxyUsername = '', $proxyPassword = '')
     {
-        $this->proxyhost = $proxyhost;
-        $this->proxyport = $proxyport;
-        $this->proxyusername = $proxyusername;
-        $this->proxypassword = $proxypassword;
+        $this->proxyHost = $proxyHost;
+        $this->proxyPort = $proxyPort;
+        $this->proxyUsername = $proxyUsername;
+        $this->proxyPassword = $proxyPassword;
     }
 
     /**
@@ -718,38 +702,6 @@ class Client extends Base
     {
         $this->debug('useHTTPPersistentConnection');
         $this->persistentConnection = true;
-    }
-
-    /**
-     * gets the default RPC parameter setting.
-     * If true, default is that call params are like RPC even for document style.
-     * Each call() can override this value.
-     *
-     * This is no longer used.
-     *
-     * @return bool
-     *
-     * @deprecated
-     */
-    public function getDefaultRpcParams()
-    {
-        return $this->defaultRpcParams;
-    }
-
-    /**
-     * sets the default RPC parameter setting.
-     * If true, default is that call params are like RPC even for document style
-     * Each call() can override this value.
-     *
-     * This is no longer used.
-     *
-     * @param bool $rpcParams
-     *
-     * @deprecated
-     */
-    public function setDefaultRpcParams($rpcParams)
-    {
-        $this->defaultRpcParams = $rpcParams;
     }
 
     /**

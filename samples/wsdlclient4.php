@@ -16,19 +16,19 @@ require_once('../lib/nusoap.php');
 $method = isset($_POST['method']) ? $_POST['method'] : '';
 $null = isset($_POST['null']) ? $_POST['null'] : '';
 $empty = isset($_POST['empty']) ? $_POST['empty'] : '';
-$proxyhost = isset($_POST['proxyhost']) ? $_POST['proxyhost'] : '';
-$proxyport = isset($_POST['proxyport']) ? $_POST['proxyport'] : '';
-$proxyusername = isset($_POST['proxyusername']) ? $_POST['proxyusername'] : '';
-$proxypassword = isset($_POST['proxypassword']) ? $_POST['proxypassword'] : '';
+$proxyHost = isset($_POST['proxyHost']) ? $_POST['proxyHost'] : '';
+$proxyPort = isset($_POST['proxyPort']) ? $_POST['proxyPort'] : '';
+$proxyUsername = isset($_POST['proxyUsername']) ? $_POST['proxyUsername'] : '';
+$proxyPassword = isset($_POST['proxyPassword']) ? $_POST['proxyPassword'] : '';
 /*
  *	When no method has been specified, give the user a choice
  */
 if ($method == '') {
 	echo '<form name="MethodForm" method="POST">';
-	echo '<input type="hidden" name="proxyhost" value="' . $proxyhost .'">';
-	echo '<input type="hidden" name="proxyport" value="' . $proxyport .'">';
-	echo '<input type="hidden" name="proxyusername" value="' . $proxyusername .'">';
-	echo '<input type="hidden" name="proxypassword" value="' . $proxypassword .'">';
+	echo '<input type="hidden" name="proxyHost" value="' . $proxyHost .'">';
+	echo '<input type="hidden" name="proxyPort" value="' . $proxyPort .'">';
+	echo '<input type="hidden" name="proxyUsername" value="' . $proxyUsername .'">';
+	echo '<input type="hidden" name="proxyPassword" value="' . $proxyPassword .'">';
 	echo 'Method: <select name="method">';
 	echo '<option>echoString</option>';
 	echo '<option>echoStringArray</option>';
@@ -137,7 +137,7 @@ if ($method == 'echoString') {
 	exit();
 }
 $client = new soapclient('http://www.scottnichol.com/samples/round2_base_server.php?wsdl&debug=1', true,
-						$proxyhost, $proxyport, $proxyusername, $proxypassword);
+						$proxyHost, $proxyPort, $proxyUsername, $proxyPassword);
 $err = $client->getError();
 if ($err) {
 	echo '<h2>Constructor error</h2><pre>' . $err . '</pre>';
