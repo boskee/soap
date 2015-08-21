@@ -479,12 +479,6 @@ class Client extends Base
                     //if(strpos($this->endpoint,'http:')){
                     $this->responseData = $http->send($msg, $timeout, $response_timeout, $this->cookies);
                 } elseif (preg_match('/^https/', $this->endpoint)) {
-                    //} elseif(strpos($this->endpoint,'https:')){
-                    //if(phpversion() == '4.3.0-dev'){
-                        //$response = $http->send($msg,$timeout,$response_timeout);
-                           //$this->request = $http->outgoing_payload;
-                        //$this->response = $http->incoming_payload;
-                    //} else
                     $this->responseData = $http->sendHTTPS($msg, $timeout, $response_timeout, $this->cookies);
                 } else {
                     $this->setError('no http/s in endpoint url');

@@ -574,8 +574,6 @@ class TransportHTTP extends Base
                 $this->setHeader('Connection', 'close');
                 $this->persistentConnection = false;
             }
-            // deprecated as of PHP 5.3.0
-            //set_magic_quotes_runtime(0);
             $this->encoding = $enc;
         }
     }
@@ -634,68 +632,6 @@ class TransportHTTP extends Base
         }
 
         return false;
-    }
-
-    /**
-     * decode a string that is encoded w/ "chunked' transfer encoding
-     * as defined in RFC2068 19.4.6.
-     *
-     * @param string $buffer
-     * @param string $lb
-     * @returns  string
-     *
-     * @deprecated
-     */
-    public function decodeChunked($buffer, $lb)
-    {
-        // length := 0
-        $length = 0;
-        $new = '';
-
-        // read chunk-size, chunk-extension (if any) and CRLF
-        // get the position of the linebreak
-        $chunkend = strpos($buffer, $lb);
-        if ($chunkend == false) {
-            $this->debug('no linebreak found in decodeChunked');
-
-            return $new;
-        }
-        $temp = substr($buffer, 0, $chunkend);
-        $chunk_size = hexdec(trim($temp));
-        $chunkstart = $chunkend + strlen($lb);
-        // while (chunk-size > 0) {
-        while ($chunk_size > 0) {
-            $this->debug("chunkstart: $chunkstart chunk_size: $chunk_size");
-            $chunkend = strpos($buffer, $lb, $chunkstart + $chunk_size);
-
-            // Just in case we got a broken connection
-            if ($chunkend == false) {
-                $chunk = substr($buffer, $chunkstart);
-                // append chunk-data to entity-body
-                $new .= $chunk;
-                $length += strlen($chunk);
-                break;
-            }
-
-            // read chunk-data and CRLF
-            $chunk = substr($buffer, $chunkstart, $chunkend - $chunkstart);
-            // append chunk-data to entity-body
-            $new .= $chunk;
-            // length := length + chunk-size
-            $length += strlen($chunk);
-            // read chunk-size and CRLF
-            $chunkstart = $chunkend + strlen($lb);
-
-            $chunkend = strpos($buffer, $lb, $chunkstart) + strlen($lb);
-            if ($chunkend == false) {
-                break; //Just in case we got a broken connection
-            }
-            $temp = substr($buffer, $chunkstart, $chunkend - $chunkstart);
-            $chunk_size = hexdec(trim($temp));
-            $chunkstart = $chunkend;
-        }
-
-        return $new;
     }
 
     /**
@@ -764,44 +700,44 @@ class TransportHTTP extends Base
 
         if ($this->io_method() == 'socket') {
             // send payload
-        if (!fputs($this->fp, $this->outgoing_payload, strlen($this->outgoing_payload))) {
-            $this->setError('couldn\'t write message data to socket');
-            $this->debug('couldn\'t write message data to socket');
+            if (!fputs($this->fp, $this->outgoing_payload, strlen($this->outgoing_payload))) {
+                $this->setError('couldn\'t write message data to socket');
+                $this->debug('couldn\'t write message data to socket');
 
-            return false;
-        }
+                return false;
+            }
             $this->debug('wrote data to socket, length = '.strlen($this->outgoing_payload));
 
             return true;
         } elseif ($this->io_method() == 'curl') {
             // set payload
-        // cURL does say this should only be the verb, and in fact it
-        // turns out that the URI and HTTP version are appended to this, which
-        // some servers refuse to work with (so we no longer use this method!)
-        //$this->setCurlOption(CURLOPT_CUSTOMREQUEST, $this->outgoing_payload);
-        $curl_headers = array();
-            foreach ($this->outgoing_headers as $k => $v) {
-                if ($k == 'Connection' || $k == 'Content-Length' || $k == 'Host' || $k == 'Authorization' || $k == 'Proxy-Authorization') {
-                    $this->debug("Skip cURL header $k: $v");
-                } else {
-                    $curl_headers[] = "$k: $v";
+            // cURL does say this should only be the verb, and in fact it
+            // turns out that the URI and HTTP version are appended to this, which
+            // some servers refuse to work with (so we no longer use this method!)
+            //$this->setCurlOption(CURLOPT_CUSTOMREQUEST, $this->outgoing_payload);
+            $curl_headers = array();
+                foreach ($this->outgoing_headers as $k => $v) {
+                    if ($k == 'Connection' || $k == 'Content-Length' || $k == 'Host' || $k == 'Authorization' || $k == 'Proxy-Authorization') {
+                        $this->debug("Skip cURL header $k: $v");
+                    } else {
+                        $curl_headers[] = "$k: $v";
+                    }
                 }
+                if ($cookie_str != '') {
+                    $curl_headers[] = 'Cookie: '.$cookie_str;
+                }
+                $this->setCurlOption(CURLOPT_HTTPHEADER, $curl_headers);
+                $this->debug('set cURL HTTP headers');
+                if ($this->request_method == 'POST') {
+                    $this->setCurlOption(CURLOPT_POST, 1);
+                    $this->setCurlOption(CURLOPT_POSTFIELDS, $data);
+                    $this->debug('set cURL POST data');
+                } else {
+                }
+            // insert custom user-set cURL options
+            foreach ($this->ch_options as $key => $val) {
+                $this->setCurlOption($key, $val);
             }
-            if ($cookie_str != '') {
-                $curl_headers[] = 'Cookie: '.$cookie_str;
-            }
-            $this->setCurlOption(CURLOPT_HTTPHEADER, $curl_headers);
-            $this->debug('set cURL HTTP headers');
-            if ($this->request_method == 'POST') {
-                $this->setCurlOption(CURLOPT_POST, 1);
-                $this->setCurlOption(CURLOPT_POSTFIELDS, $data);
-                $this->debug('set cURL POST data');
-            } else {
-            }
-        // insert custom user-set cURL options
-        foreach ($this->ch_options as $key => $val) {
-            $this->setCurlOption($key, $val);
-        }
 
             $this->debug('set cURL payload');
 
@@ -820,18 +756,18 @@ class TransportHTTP extends Base
 
         if ($this->io_method() == 'socket') {
             // loop until headers have been retrieved
-        $data = '';
+            $data = '';
             while (!isset($lb)) {
 
-            // We might EOF during header read.
-            if (feof($this->fp)) {
-                $this->incoming_payload = $data;
-                $this->debug('found no headers before EOF after length '.strlen($data));
-                $this->debug("received before EOF:\n".$data);
-                $this->setError('server failed to send headers');
+                // We might EOF during header read.
+                if (feof($this->fp)) {
+                    $this->incoming_payload = $data;
+                    $this->debug('found no headers before EOF after length '.strlen($data));
+                    $this->debug("received before EOF:\n".$data);
+                    $this->setError('server failed to send headers');
 
-                return false;
-            }
+                    return false;
+                }
 
                 $tmp = fgets($this->fp, 256);
                 $tmplen = strlen($tmp);
@@ -856,17 +792,17 @@ class TransportHTTP extends Base
                         $lb = "\n";
                     }
                 }
-            // remove 100 headers
-            if (isset($lb) && preg_match('/^HTTP\/1.1 100/', $data)) {
-                unset($lb);
-                $data = '';
-            }//
+                // remove 100 headers
+                if (isset($lb) && preg_match('/^HTTP\/1.1 100/', $data)) {
+                    unset($lb);
+                    $data = '';
+                }
             }
-        // store header data
-        $this->incoming_payload .= $data;
+            // store header data
+            $this->incoming_payload .= $data;
             $this->debug('found end of headers after length '.strlen($data));
-        // process headers
-        $header_data = trim(substr($data, 0, $pos));
+            // process headers
+            $header_data = trim(substr($data, 0, $pos));
             $header_array = explode($lb, $header_data);
             $this->incoming_headers = array();
             $this->incoming_cookies = array();
@@ -891,20 +827,20 @@ class TransportHTTP extends Base
                 }
             }
 
-        // loop until msg has been received
-        if (isset($this->incoming_headers['transfer-encoding']) && strtolower($this->incoming_headers['transfer-encoding']) == 'chunked') {
-            $content_length = 2147483647;  // ignore any content-length header
-            $chunked = true;
-            $this->debug('want to read chunked content');
-        } elseif (isset($this->incoming_headers['content-length'])) {
-            $content_length = $this->incoming_headers['content-length'];
-            $chunked = false;
-            $this->debug("want to read content of length $content_length");
-        } else {
-            $content_length = 2147483647;
-            $chunked = false;
-            $this->debug('want to read content to EOF');
-        }
+            // loop until msg has been received
+            if (isset($this->incoming_headers['transfer-encoding']) && strtolower($this->incoming_headers['transfer-encoding']) == 'chunked') {
+                $content_length = 2147483647;  // ignore any content-length header
+                $chunked = true;
+                $this->debug('want to read chunked content');
+            } elseif (isset($this->incoming_headers['content-length'])) {
+                $content_length = $this->incoming_headers['content-length'];
+                $chunked = false;
+                $this->debug("want to read content of length $content_length");
+            } else {
+                $content_length = 2147483647;
+                $chunked = false;
+                $this->debug('want to read content to EOF');
+            }
             $data = '';
             do {
                 if ($chunked) {
@@ -978,10 +914,6 @@ class TransportHTTP extends Base
 
         // decode transfer-encoding
 //      if(isset($this->incoming_headers['transfer-encoding']) && strtolower($this->incoming_headers['transfer-encoding']) == 'chunked'){
-//          if(!$data = $this->decodeChunked($data, $lb)){
-//              $this->setError('Decoding of chunked data failed');
-//              return false;
-//          }
             //print "<pre>\nde-chunked:\n---------------\n$data\n\n---------------\n</pre>";
             // set decoded payload
 //          $this->incoming_payload = $header_data.$lb.$lb.$data;

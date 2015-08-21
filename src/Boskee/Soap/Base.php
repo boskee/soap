@@ -166,7 +166,7 @@ abstract class Base
     * @var      array
     * @access   public
     */
-    public $typemap = array(
+    public $typeMap = array(
     'http://www.w3.org/2001/XMLSchema' => array(
         'string' => 'string','boolean' => 'boolean','float' => 'double','double' => 'double','decimal' => 'double',
         'duration' => '','dateTime' => 'string','time' => 'string','date' => 'string','gYearMonth' => '',
@@ -191,23 +191,12 @@ abstract class Base
     'http://xml.apache.org/xml-soap' => array('Map'),
     );
 
-    /*
-    * XML entities to convert
-    *
-    * @var      array
-    * @access   public
-    * @deprecated
-    * @see	expandEntities
-    */
-    public $xmlEntities = array('quot' => '"','amp' => '&',
-        'lt' => '<','gt' => '>','apos' => "'", );
-
     /**
      * constructor.
      */
     public function __construct()
     {
-        $this->debugLevel = $GLOBALS['_transient']['static']['nusoap_base']['globalDebugLevel'];
+        $this->debugLevel = 9; //$GLOBALS['_transient']['static']['nusoap_base']['globalDebugLevel'];
     }
 
     /**
@@ -423,7 +412,7 @@ abstract class Base
         // if type is prefixed, create type prefix
         if ($type_ns != '' && $type_ns == $this->namespaces['xsd']) {
             // need to fix this. shouldn't default to xsd if no ns specified
-            // w/o checking against typemap
+            // w/o checking against typeMap
             $type_prefix = 'xsd';
         } elseif ($type_ns) {
             $type_prefix = 'ns'.rand(1000, 9999);
@@ -458,7 +447,7 @@ abstract class Base
             }
         }
         // serialize if an xsd built-in primitive type
-        if ($type != '' && isset($this->typemap[$this->XMLSchemaVersion][$type])) {
+        if ($type != '' && isset($this->typeMap[$this->XMLSchemaVersion][$type])) {
             $this->debug('serialize_val: serialize xsd built-in primitive type');
             if (is_bool($val)) {
                 if ($type == 'boolean') {
@@ -575,7 +564,7 @@ abstract class Base
                         }
                         if (count($array_types) > 1) {
                             $array_typename = 'xsd:anyType';
-                        } elseif (isset($tt) && isset($this->typemap[$this->XMLSchemaVersion][$tt])) {
+                        } elseif (isset($tt) && isset($this->typeMap[$this->XMLSchemaVersion][$tt])) {
                             if ($tt == 'integer') {
                                 $tt = 'int';
                             }
@@ -668,17 +657,17 @@ abstract class Base
     public function serializeEnvelope($body, $headers = false, $namespaces = array(), $style = 'rpc', $use = 'encoded', $encodingStyle = 'http://schemas.xmlsoap.org/soap/encoding/')
     {
         // TODO: add an option to automatically run utf8_encode on $body and $headers
-    // if $this->soap_defencoding is UTF-8.  Not doing this automatically allows
-    // one to send arbitrary UTF-8 characters, not just characters that map to ISO-8859-1
+        // if $this->soap_defencoding is UTF-8.  Not doing this automatically allows
+        // one to send arbitrary UTF-8 characters, not just characters that map to ISO-8859-1
 
-    $this->debug('In serializeEnvelope length='.strlen($body).' body (max 1000 characters)='.substr($body, 0, 1000)." style=$style use=$use encodingStyle=$encodingStyle");
+        $this->debug('In serializeEnvelope length='.strlen($body).' body (max 1000 characters)='.substr($body, 0, 1000)." style=$style use=$use encodingStyle=$encodingStyle");
         $this->debug('headers:');
         $this->appendDebug($this->varDump($headers));
         $this->debug('namespaces:');
         $this->appendDebug($this->varDump($namespaces));
 
-    // serialize namespaces
-    $ns_string = '';
+        // serialize namespaces
+        $ns_string = '';
         foreach (array_merge($this->namespaces, $namespaces) as $k => $v) {
             $ns_string .= " xmlns:$k=\"$v\"";
         }
@@ -686,47 +675,30 @@ abstract class Base
             $ns_string = " SOAP-ENV:encodingStyle=\"$encodingStyle\"$ns_string";
         }
 
-    // serialize headers
-    if ($headers) {
-        if (is_array($headers)) {
-            $xml = '';
-            foreach ($headers as $k => $v) {
-                if (is_object($v) && get_class($v) == 'Boskee\Soap\SoapVal') {
-                    $xml .= $this->serialize_val($v, false, false, false, false, false, $use);
-                } else {
-                    $xml .= $this->serialize_val($v, $k, false, false, false, false, $use);
+        // serialize headers
+        if ($headers) {
+            if (is_array($headers)) {
+                $xml = '';
+                foreach ($headers as $k => $v) {
+                    if (is_object($v) && get_class($v) == 'Boskee\Soap\SoapVal') {
+                        $xml .= $this->serialize_val($v, false, false, false, false, false, $use);
+                    } else {
+                        $xml .= $this->serialize_val($v, $k, false, false, false, false, $use);
+                    }
                 }
+                $headers = $xml;
+                $this->debug("In serializeEnvelope, serialized array of headers to $headers");
             }
-            $headers = $xml;
-            $this->debug("In serializeEnvelope, serialized array of headers to $headers");
+            $headers = '<SOAP-ENV:Header>'.$headers.'</SOAP-ENV:Header>';
         }
-        $headers = '<SOAP-ENV:Header>'.$headers.'</SOAP-ENV:Header>';
-    }
-    // serialize envelope
-    return
-    '<?xml version="1.0" encoding="'.$this->soap_defencoding.'"?'.'>'.
-    '<SOAP-ENV:Envelope'.$ns_string.'>'.
-    $headers.
-    '<SOAP-ENV:Body>'.
-        $body.
-    '</SOAP-ENV:Body>'.
-    '</SOAP-ENV:Envelope>';
-    }
-
-    /**
-     * formats a string to be inserted into an HTML stream.
-     *
-     * @param string $str The string to format
-     *
-     * @return string The formatted string
-     *
-     * @deprecated
-     */
-    public function formatDump($str)
-    {
-        $str = htmlspecialchars($str);
-
-        return nl2br($str);
+        // serialize envelope
+        return '<?xml version="1.0" encoding="'.$this->soap_defencoding.'"?'.'>'.
+        '<SOAP-ENV:Envelope'.$ns_string.'>'.
+        $headers.
+        '<SOAP-ENV:Body>'.
+            $body.
+        '</SOAP-ENV:Body>'.
+        '</SOAP-ENV:Envelope>';
     }
 
     /**
@@ -986,22 +958,4 @@ function iso8601_to_timestamp($datestr)
     } else {
         return false;
     }
-}
-
-/**
- * sleeps some number of microseconds.
- *
- * @param string $usec the number of microseconds to sleep
- *
- * @deprecated
- */
-function usleepWindows($usec)
-{
-    $start = gettimeofday();
-
-    do {
-        $stop = gettimeofday();
-        $timePassed = 1000000 * ($stop['sec'] - $start['sec'])
-        + $stop['usec'] - $start['usec'];
-    } while ($timePassed < $usec);
 }

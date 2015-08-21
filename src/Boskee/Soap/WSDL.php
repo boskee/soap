@@ -39,7 +39,7 @@ class WSDL extends Base
     public $parser;
     public $position = 0;
     public $depth = 0;
-    public $depth_array = array();
+    public $depthArray = array();
     // for getting wsdl
     public $proxyHost = '';
     public $proxyPort = '';
@@ -325,7 +325,7 @@ class WSDL extends Base
             $pos = $this->position++;
             $depth = $this->depth++;
             // set self as current value for this depth
-            $this->depth_array[$depth] = $pos;
+            $this->depthArray[$depth] = $pos;
             $this->message[$pos] = array('cdata' => '');
             // process attributes
             if (count($attrs) > 0) {
@@ -550,7 +550,7 @@ class WSDL extends Base
      */
     public function character_data($parser, $data)
     {
-        $pos = isset($this->depth_array[$this->depth]) ? $this->depth_array[$this->depth] : 0;
+        $pos = isset($this->depthArray[$this->depth]) ? $this->depthArray[$this->depth] : 0;
         if (isset($this->message[$pos]['cdata'])) {
             $this->message[$pos]['cdata'] .= $data;
         }
@@ -950,11 +950,11 @@ class WSDL extends Base
                         // print 'serializing '.$partType.', sv: '.$this->XMLSchemaVersion.'<br>';
                         if (strpos($partType, ':')) {
                             $typePrefix = $this->getPrefixFromNamespace($this->getPrefix($partType));
-                        } elseif (isset($this->typemap[$this->namespaces['xsd']][$partType])) {
-                            // print 'checking typemap: '.$this->XMLSchemaVersion.'<br>';
+                        } elseif (isset($this->typeMap[$this->namespaces['xsd']][$partType])) {
+                            // print 'checking typeMap: '.$this->XMLSchemaVersion.'<br>';
                             $typePrefix = 'xsd';
                         } else {
-                            foreach ($this->typemap as $ns => $types) {
+                            foreach ($this->typeMap as $ns => $types) {
                                 if (isset($types[$partType])) {
                                     $typePrefix = $this->getPrefixFromNamespace($ns);
                                 }
@@ -1219,90 +1219,6 @@ class WSDL extends Base
             }
         }
         $this->debug("serializeRPCParameters returning: $xml");
-
-        return $xml;
-    }
-
-    /**
-     * serialize a PHP value according to a WSDL message definition.
-     * 
-     * TODO
-     * - multi-ref serialization
-     * - validate PHP values against type definitions, return errors if invalid
-     * 
-     * @param string $operation  operation name
-     * @param string $direction  (input|output)
-     * @param mixed  $parameters parameter value(s)
-     *
-     * @return mixed parameters serialized as XML or false on error (e.g. operation not found)
-     *
-     * @deprecated
-     */
-    public function serializeParameters($operation, $direction, $parameters)
-    {
-        $this->debug("in serializeParameters: operation=$operation, direction=$direction, XMLSchemaVersion=$this->XMLSchemaVersion");
-        $this->appendDebug('parameters='.$this->varDump($parameters));
-
-        if ($direction != 'input' && $direction != 'output') {
-            $this->debug('The value of the \$direction argument needs to be either "input" or "output"');
-            $this->setError('The value of the \$direction argument needs to be either "input" or "output"');
-
-            return false;
-        }
-        if (!$opData = $this->getOperationData($operation)) {
-            $this->debug('Unable to retrieve WSDL data for operation: '.$operation);
-            $this->setError('Unable to retrieve WSDL data for operation: '.$operation);
-
-            return false;
-        }
-        $this->debug('opData:');
-        $this->appendDebug($this->varDump($opData));
-
-        // Get encoding style for output and set to current
-        $encodingStyle = 'http://schemas.xmlsoap.org/soap/encoding/';
-        if (($direction == 'input') && isset($opData['output']['encodingStyle']) && ($opData['output']['encodingStyle'] != $encodingStyle)) {
-            $encodingStyle = $opData['output']['encodingStyle'];
-            $enc_style = $encodingStyle;
-        }
-
-        // set input params
-        $xml = '';
-        if (isset($opData[$direction]['parts']) && sizeof($opData[$direction]['parts']) > 0) {
-            $use = $opData[$direction]['use'];
-            $this->debug("use=$use");
-            $this->debug('got '.count($opData[$direction]['parts']).' part(s)');
-            if (is_array($parameters)) {
-                $parametersArrayType = $this->isArraySimpleOrStruct($parameters);
-                $this->debug('have '.$parametersArrayType.' parameters');
-                foreach ($opData[$direction]['parts'] as $name => $type) {
-                    $this->debug('serializing part "'.$name.'" of type "'.$type.'"');
-                    // Track encoding style
-                    if (isset($opData[$direction]['encodingStyle']) && $encodingStyle != $opData[$direction]['encodingStyle']) {
-                        $encodingStyle = $opData[$direction]['encodingStyle'];
-                        $enc_style = $encodingStyle;
-                    } else {
-                        $enc_style = false;
-                    }
-                    // NOTE: add error handling here
-                    // if serializeType returns false, then catch global error and fault
-                    if ($parametersArrayType == 'arraySimple') {
-                        $p = array_shift($parameters);
-                        $this->debug('calling serializeType w/indexed param');
-                        $xml .= $this->serializeType($name, $type, $p, $use, $enc_style);
-                    } elseif (isset($parameters[$name])) {
-                        $this->debug('calling serializeType w/named param');
-                        $xml .= $this->serializeType($name, $type, $parameters[$name], $use, $enc_style);
-                    } else {
-                        // TODO: only send nillable
-                        $this->debug('calling serializeType w/null param');
-                        $xml .= $this->serializeType($name, $type, null, $use, $enc_style);
-                    }
-                }
-            } else {
-                $this->debug('no parameters passed.');
-            }
-        }
-        $this->debug("serializeParameters returning: $xml");
 
         return $xml;
     }
@@ -1586,7 +1502,7 @@ class WSDL extends Base
                 foreach ($value as $k => $v) {
                     $this->debug("serializing array element: $k, $v of type: $typeDef[arrayType]");
                     //if (strpos($typeDef['arrayType'], ':') ) {
-                    if (!in_array($typeDef['arrayType'], $this->typemap['http://www.w3.org/2001/XMLSchema'])) {
+                    if (!in_array($typeDef['arrayType'], $this->typeMap['http://www.w3.org/2001/XMLSchema'])) {
                         $contents .= $this->serializeType('item', $typeDef['arrayType'], $v, $use);
                     } else {
                         $contents .= $this->serialize_val($v, 'item', $typeDef['arrayType'], null, $this->XMLSchemaVersion, false, $use);

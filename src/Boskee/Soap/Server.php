@@ -942,20 +942,6 @@ class Server extends Base
     }
 
     /**
-     * add a method to the dispatch map (this has been replaced by the register method).
-     *
-     * @param string $methodname
-     * @param string $in         array of input values
-     * @param string $out        array of output values
-     *
-     * @deprecated
-     */
-    public function add_to_map($methodname, $in, $out)
-    {
-        $this->operations[$methodname] = array('name' => $methodname,'in' => $in,'out' => $out);
-    }
-
-    /**
      * register a service function with the server.
      *
      * @param string $name          the name of the PHP function, class.method or class..method
@@ -1016,12 +1002,13 @@ class Server extends Base
         }
 
         $this->operations[$name] = array(
-        'name' => $name,
-        'in' => $in,
-        'out' => $out,
-        'namespace' => $namespace,
-        'soapaction' => $soapaction,
-        'style' => $style, );
+            'name' => $name,
+            'in' => $in,
+            'out' => $out,
+            'namespace' => $namespace,
+            'soapaction' => $soapaction,
+            'style' => $style
+        );
         if ($this->wsdl) {
             $this->wsdl->addOperation($name, $in, $out, $namespace, $soapaction, $style, $use, $documentation, $encodingStyle);
         }
@@ -1122,7 +1109,8 @@ class Server extends Base
             'name' => $serviceName.'Binding',
             'style' => $style,
             'transport' => $transport,
-            'portType' => $serviceName.'PortType', );
+            'portType' => $serviceName.'PortType'
+        );
         $this->wsdl->ports[$serviceName.'Port'] = array(
             'binding' => $serviceName.'Binding',
             'location' => $endpoint,

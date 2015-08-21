@@ -38,7 +38,7 @@ class XMLSchema extends Base
     public $parser;
     public $position = 0;
     public $depth = 0;
-    public $depth_array = array();
+    public $depthArray = array();
     public $message = array();
     public $defaultNamespace = array();
 
@@ -183,10 +183,10 @@ class XMLSchema extends Base
         $pos = $this->position++;
         $depth = $this->depth++;
         // set self as current value for this depth
-        $this->depth_array[$depth] = $pos;
+        $this->depthArray[$depth] = $pos;
         $this->message[$pos] = array('cdata' => '');
         if ($depth > 0) {
-            $this->defaultNamespace[$pos] = $this->defaultNamespace[$this->depth_array[$depth - 1]];
+            $this->defaultNamespace[$pos] = $this->defaultNamespace[$this->depthArray[$depth - 1]];
         } else {
             $this->defaultNamespace[$pos] = false;
         }
@@ -291,7 +291,7 @@ class XMLSchema extends Base
                         $this->complexTypes[$this->currentComplexType]['multidimensional'] = true;
                     }
                     $v = substr($v, 0, strpos($v, '[')); // clip the []
-                    if (!strpos($v, ':') && isset($this->typemap[$this->XMLSchemaVersion][$v])) {
+                    if (!strpos($v, ':') && isset($this->typeMap[$this->XMLSchemaVersion][$v])) {
                         $v = $this->XMLSchemaVersion.':'.$v;
                     }
                     $this->complexTypes[$this->currentComplexType]['arrayType'] = $v;
@@ -393,8 +393,8 @@ class XMLSchema extends Base
                     $this->complexTypes[$this->currentComplexType]['elements'][$ename] = $attrs;
                 } elseif (!isset($attrs['ref'])) {
                     $this->xdebug("add element $ename to elements array");
-                    $this->elements[ $attrs['name'] ] = $attrs;
-                    $this->elements[ $attrs['name'] ]['typeClass'] = 'element';
+                    $this->elements[$attrs['name']] = $attrs;
+                    $this->elements[$attrs['name']]['typeClass'] = 'element';
                 }
             break;
             case 'enumeration':    //	restriction value list member
@@ -477,9 +477,9 @@ class XMLSchema extends Base
                 if (isset($attrs['name'])) {
                     $this->xdebug('processing simpleType for name '.$attrs['name']);
                     $this->currentSimpleType = $attrs['name'];
-                    $this->simpleTypes[ $attrs['name'] ] = $attrs;
-                    $this->simpleTypes[ $attrs['name'] ]['typeClass'] = 'simpleType';
-                    $this->simpleTypes[ $attrs['name'] ]['phpType'] = 'scalar';
+                    $this->simpleTypes[$attrs['name']] = $attrs;
+                    $this->simpleTypes[$attrs['name']]['typeClass'] = 'simpleType';
+                    $this->simpleTypes[$attrs['name']]['phpType'] = 'scalar';
                 } else {
                     $name = $this->CreateTypeName($this->currentComplexType.'_'.$this->currentElement);
                     $this->xdebug('processing unnamed simpleType for element '.$this->currentElement.' named '.$name);
@@ -507,9 +507,9 @@ class XMLSchema extends Base
     {
         // bring depth down a notch
         --$this->depth;
-        // position of current element is equal to the last value left in depth_array for my depth
-        if (isset($this->depth_array[$this->depth])) {
-            $pos = $this->depth_array[$this->depth];
+        // position of current element is equal to the last value left in depthArray for my depth
+        if (isset($this->depthArray[$this->depth])) {
+            $pos = $this->depthArray[$this->depth];
         }
         // get element prefix
         if ($prefix = $this->getPrefix($name)) {
@@ -544,7 +544,7 @@ class XMLSchema extends Base
      */
     public function schemaCharacterData($parser, $data)
     {
-        $pos = $this->depth_array[$this->depth - 1];
+        $pos = $this->depthArray[$this->depth - 1];
         $this->message[$pos]['cdata'] .= $data;
     }
 
@@ -675,32 +675,6 @@ class XMLSchema extends Base
     }
 
     /**
-     * get the PHP type of a user defined type in the schema
-     * PHP type is kind of a misnomer since it actually returns 'struct' for assoc. arrays
-     * returns false if no type exists, or not w/ the given namespace
-     * else returns a string that is either a native php type, or 'struct'.
-     *
-     * @param string $type name of defined type
-     * @param string $ns   namespace of type
-     *
-     * @return mixed
-     *
-     * @deprecated
-     */
-    public function getPHPType($type, $ns)
-    {
-        if (isset($this->typemap[$ns][$type])) {
-            //print "found type '$type' and ns $ns in typemap<br>";
-            return $this->typemap[$ns][$type];
-        } elseif (isset($this->complexTypes[$type])) {
-            //print "getting type '$type' and ns $ns from complexTypes array<br>";
-            return $this->complexTypes[$type]['phpType'];
-        }
-
-        return false;
-    }
-
-    /**
      * returns an associative array of information about a given type
      * returns false if no type exists by the given name.
      *
@@ -802,88 +776,6 @@ class XMLSchema extends Base
     }
 
     /**
-     * returns a sample serialization of a given type, or false if no type by the given name.
-     *
-     * @param string $type name of type
-     *
-     * @return mixed
-     *
-     * @deprecated
-     */
-    public function serializeTypeDef($type)
-    {
-        //print "in sTD() for type $type<br>";
-    if ($typeDef = $this->getTypeDef($type)) {
-        $str .= '<'.$type;
-        if (is_array($typeDef['attrs'])) {
-            foreach ($typeDef['attrs'] as $attName => $data) {
-                $str .= " $attName=\"{type = ".$data['type'].'}"';
-            }
-        }
-        $str .= ' xmlns="'.$this->schema['targetNamespace'].'"';
-        if (count($typeDef['elements']) > 0) {
-            $str .= '>';
-            foreach ($typeDef['elements'] as $element => $eData) {
-                $str .= $this->serializeTypeDef($element);
-            }
-            $str .= "</$type>";
-        } elseif ($typeDef['typeClass'] == 'element') {
-            $str .= "></$type>";
-        } else {
-            $str .= '/>';
-        }
-
-        return $str;
-    }
-
-        return false;
-    }
-
-    /**
-     * returns HTML form elements that allow a user
-     * to enter values for creating an instance of the given type.
-     *
-     * @param string $name name for type instance
-     * @param string $type name of type
-     *
-     * @return string
-     *
-     * @deprecated
-     */
-    public function typeToForm($name, $type)
-    {
-        // get typedef
-        if ($typeDef = $this->getTypeDef($type)) {
-            // if struct
-            if ($typeDef['phpType'] == 'struct') {
-                $buffer .= '<table>';
-                foreach ($typeDef['elements'] as $child => $childDef) {
-                    $buffer .= "
-					<tr><td align='right'>$childDef[name] (type: ".$this->getLocalPart($childDef['type'])."):</td>
-					<td><input type='text' name='parameters[".$name."][$childDef[name]]'></td></tr>";
-                }
-                $buffer .= '</table>';
-            // if array
-            } elseif ($typeDef['phpType'] == 'array') {
-                $buffer .= '<table>';
-                for ($i = 0;$i < 3; ++$i) {
-                    $buffer .= "
-					<tr><td align='right'>array item (type: $typeDef[arrayType]):</td>
-					<td><input type='text' name='parameters[".$name."][]'></td></tr>";
-                }
-                $buffer .= '</table>';
-            // if scalar
-            } else {
-                $buffer .= "<input type='text' name='parameters[$name]'>";
-            }
-        } else {
-            $buffer .= "<input type='text' name='parameters[$name]'>";
-        }
-
-        return $buffer;
-    }
-
-    /**
      * adds a complex type to the schema.
      * 
      * example: array
@@ -927,14 +819,14 @@ class XMLSchema extends Base
     public function addComplexType($name, $typeClass = 'complexType', $phpType = 'array', $compositor = '', $restrictionBase = '', $elements = array(), $attrs = array(), $arrayType = '')
     {
         $this->complexTypes[$name] = array(
-        'name' => $name,
-        'typeClass' => $typeClass,
-        'phpType' => $phpType,
-        'compositor' => $compositor,
-        'restrictionBase' => $restrictionBase,
-        'elements' => $elements,
-        'attrs' => $attrs,
-        'arrayType' => $arrayType,
+            'name' => $name,
+            'typeClass' => $typeClass,
+            'phpType' => $phpType,
+            'compositor' => $compositor,
+            'restrictionBase' => $restrictionBase,
+            'elements' => $elements,
+            'attrs' => $attrs,
+            'arrayType' => $arrayType
         );
 
         $this->xdebug("addComplexType $name:");
@@ -956,11 +848,11 @@ class XMLSchema extends Base
     public function addSimpleType($name, $restrictionBase = '', $typeClass = 'simpleType', $phpType = 'scalar', $enumeration = array())
     {
         $this->simpleTypes[$name] = array(
-        'name' => $name,
-        'typeClass' => $typeClass,
-        'phpType' => $phpType,
-        'type' => $restrictionBase,
-        'enumeration' => $enumeration,
+            'name' => $name,
+            'typeClass' => $typeClass,
+            'phpType' => $phpType,
+            'type' => $restrictionBase,
+            'enumeration' => $enumeration
         );
 
         $this->xdebug("addSimpleType $name:");
@@ -979,16 +871,10 @@ class XMLSchema extends Base
         if (!$this->getPrefix($attrs['type'])) {
             $attrs['type'] = $this->schemaTargetNamespace.':'.$attrs['type'];
         }
-        $this->elements[ $attrs['name'] ] = $attrs;
-        $this->elements[ $attrs['name'] ]['typeClass'] = 'element';
+        $this->elements[$attrs['name']] = $attrs;
+        $this->elements[$attrs['name']]['typeClass'] = 'element';
 
         $this->xdebug('addElement '.$attrs['name']);
-        $this->appendDebug($this->varDump($this->elements[ $attrs['name'] ]));
+        $this->appendDebug($this->varDump($this->elements[$attrs['name']]));
     }
 }
-
-/*
- * Backward compatibility
- */
-/*class \XMLSchema extends XMLSchema {
-}*/

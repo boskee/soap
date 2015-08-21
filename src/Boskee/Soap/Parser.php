@@ -32,7 +32,7 @@ class Parser extends Base
     public $fault_code = '';
     public $fault_str = '';
     public $fault_detail = '';
-    public $depth_array = array();
+    public $depthArray = array();
     public $debug_flag = true;
     public $soapresponse = null;    // parsed SOAP Body
     public $soapheader = null;        // parsed SOAP Header
@@ -169,7 +169,7 @@ class Parser extends Base
         // set self as current parent
         $this->parent = $pos;
         // set self as current value for this depth
-        $this->depth_array[$this->depth] = $pos;
+        $this->depthArray[$this->depth] = $pos;
         // get element prefix
         if (strpos($name, ':')) {
             // get ns prefix
@@ -306,8 +306,8 @@ class Parser extends Base
      */
     public function end_element($parser, $name)
     {
-        // position of current element is equal to the last value left in depth_array for my depth
-        $pos = $this->depth_array[$this->depth--];
+        // position of current element is equal to the last value left in depthArray for my depth
+        $pos = $this->depthArray[$this->depth--];
 
         // get element prefix
         if (strpos($name, ':')) {
@@ -412,7 +412,7 @@ class Parser extends Base
      */
     public function character_data($parser, $data)
     {
-        $pos = $this->depth_array[$this->depth];
+        $pos = $this->depthArray[$this->depth];
         if ($this->xml_encoding == 'UTF-8') {
             // TODO: add an option to disable this for folks who want
             // raw UTF-8 that, e.g., might not map to iso-8859-1
@@ -428,18 +428,6 @@ class Parser extends Base
         } else {
             $this->document .= $data;
         }
-    }
-
-    /**
-     * get the parsed message (SOAP Body).
-     *
-     * @return mixed
-     *
-     * @deprecated	use get_soapbody instead
-     */
-    public function get_response()
-    {
-        return $this->soapresponse;
     }
 
     /**
